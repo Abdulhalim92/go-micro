@@ -1,6 +1,7 @@
 package main
 
 import (
+	"broker/event"
 	"bytes"
 	"encoding/json"
 	"errors"
@@ -59,12 +60,56 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	case "auth":
 		app.authenticate(w, requestPayload.Auth)
 	case "log":
-		app.logItem(w, requestPayload.Log)
+		app.logEventViaRabbit(w, requestPayload.Log)
+		//app.logItem(w, requestPayload.Log)
 	case "mail":
 		app.sendMail(w, requestPayload.Mail)
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 	}
+}
+
+// logEventViaRabbit - отправляет событие в RabbitMQ
+func (app *Config) logEventViaRabbit(w http.ResponseWriter, l LogPayload) {
+	err := app.pushToQueue(l.Name, l.Data)
+	if err != nil {
+		app.errorJSON(w, err)
+		return
+	}
+
+	var payload jsonResponse
+	payload.Error = true
+	payload.Message = "logged via RabbitMQ"
+
+	app.writeJSON(w, http.StatusAccepted, payload)
+}
+
+// pushToQueue - отправляет сообщение в очередь RabbitMQ
+func (app *Config) pushToQueue(name, msg string) error {
+	emitter, err := event.NewEventEmitter(app.RabbitMQ)
+	if err != nil {
+		log.Printf("Error creating event emitter: %s", err)
+		return err
+	}
+
+	payload := LogPayload{
+		Name: name,
+		Data: msg,
+	}
+
+	jsonData, err := json.MarshalIndent(payload, "", "\t")
+	if err != nil {
+		log.Printf("Error marshalling payload: %s", err)
+		return err
+	}
+
+	err = emitter.Push(string(jsonData), "log.INFO")
+	if err != nil {
+		log.Printf("Error pushing to queue: %s", err)
+		return err
+	}
+
+	return nil
 }
 
 // sendMail - отправляет запрос на отправку почты в сервис почты
