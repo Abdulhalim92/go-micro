@@ -7,7 +7,9 @@ import (
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"log"
 	"log-service/data"
+	"net"
 	"net/http"
+	"net/rpc"
 	"time"
 )
 
@@ -30,6 +32,7 @@ func main() {
 	if err != nil {
 		log.Panic(err)
 	}
+	client = mongoClient
 
 	// create a context in order to disconnect
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
@@ -46,8 +49,13 @@ func main() {
 		Models: data.New(mongoClient),
 	}
 
+	// register RPC server
+	err = rpc.Register(new(RPCServer))
+	if err != nil {
+		log.Panicf("Error registering RPC server: %v", err)
+	}
+	go app.rpcListen()
 	// start the web server
-	//go app.serve()
 	srv := &http.Server{
 		Addr:    fmt.Sprintf(":%s", webPort),
 		Handler: app.routes(),
@@ -61,17 +69,21 @@ func main() {
 	}
 }
 
-func (app *Config) serve() {
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", webPort),
-		Handler: app.routes(),
-	}
-
-	log.Printf("Listening on port %s", webPort)
-
-	err := srv.ListenAndServe()
+func (app *Config) rpcListen() error {
+	log.Println("Starting RPC server on port", rpcPort)
+	listener, err := net.Listen("tcp", fmt.Sprintf("0.0.0.0:%s", rpcPort))
 	if err != nil {
-		log.Panicf("Error starting server: %v", err)
+		return err
+	}
+	defer listener.Close()
+
+	for {
+		rpcConn, err := listener.Accept()
+		if err != nil {
+			log.Printf("Error accepting RPC connection: %v", err)
+			continue
+		}
+		go rpc.ServeConn(rpcConn)
 	}
 }
 
