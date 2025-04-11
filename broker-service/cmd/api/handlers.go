@@ -2,12 +2,17 @@ package main
 
 import (
 	"broker/event"
+	"broker/logs"
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
 	"log"
 	"net/http"
 	"net/rpc"
+	"time"
 )
 
 // RequestPayload - структура для передачи данных от клиента
@@ -75,6 +80,54 @@ func (app *Config) HandleSubmission(w http.ResponseWriter, r *http.Request) {
 	default:
 		app.errorJSON(w, errors.New("unknown action"))
 	}
+}
+
+// LogViaGRPC - обрабатывает запросы от клиента и перенаправляет их в нужный сервис через gRPC
+func (app *Config) LogViaGRPC(w http.ResponseWriter, r *http.Request) {
+	var requestPayload RequestPayload
+
+	err := app.readJSON(w, r, &requestPayload)
+	if err != nil {
+		log.Printf("Error reading JSON: %v", err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	log.Printf("Log via grpc request: %v", requestPayload)
+
+	conn, err := grpc.NewClient(
+		"logger-service:50051",
+		grpc.WithTransportCredentials(insecure.NewCredentials()),
+		grpc.WithBlock(),
+	)
+	if err != nil {
+		log.Printf("Error connecting to %s: %v", requestPayload.Log.Name, err)
+		app.errorJSON(w, err)
+		return
+	}
+	defer conn.Close()
+
+	c := logs.NewLogServiceClient(conn)
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	_, err = c.WriteLog(ctx, &logs.LogRequest{
+		LogEntry: &logs.Log{
+			Name: requestPayload.Log.Name,
+			Data: requestPayload.Log.Data,
+		},
+	})
+	if err != nil {
+		log.Printf("Error writing to %s: %v", requestPayload.Log.Name, err)
+		app.errorJSON(w, err)
+		return
+	}
+
+	var payload jsonResponse
+	payload.Error = false
+	payload.Message = "Logged via gRPC"
+
+	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
 // logItemViaRPC - отправляет лог в сервис логирования через RPC
@@ -225,7 +278,7 @@ func (app *Config) logItem(w http.ResponseWriter, entry LogPayload) {
 	app.writeJSON(w, http.StatusAccepted, payload)
 }
 
-// authenticate - отправляет запрос на аутентификацию в сервис аутентификации
+// Authenticate - отправляет запрос на аутентификацию в сервис аутентификации
 func (app *Config) authenticate(w http.ResponseWriter, a AuthPayload) {
 	// create some json we'll send to the auth microservice
 	jsonData, _ := json.MarshalIndent(a, "", "\t")
