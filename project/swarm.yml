@@ -1,0 +1,128 @@
+services:
+  caddy:
+    image: abdulhalim1992/micro-caddy:1.0.0
+    deploy:
+      mode: replicated
+      replicas: 1
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - caddy_data:/data
+      - caddy_config:/config
+
+  front-end:
+    container_name: front-end
+    image: abdulhalim1992/front-end:1.0.1
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      BROKER_URL: "http://backend"
+
+  broker-service:
+    container_name: broker-service
+    image: abdulhalim1992/broker-service:1.0.1
+#    ports:
+#      - "8080:80"
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  logger-service:
+    container_name: logger-service
+    image: abdulhalim1992/logger-service:1.0.0
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  listener-service:
+    container_name: listener-service
+    image: abdulhalim1992/listener-service:1.0.0
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  mailer-service:
+    container_name: mailer-service
+    image: abdulhalim1992/mail-service:1.0.0
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      MAIL_DOMAIN: localhost
+      MAIL_HOST: mailhog
+      MAIL_PORT: 1025
+      MAIL_ENCRYPTION: none
+      MAIL_USERNAME: ""
+      MAIL_PASSWORD: ""
+      FROM_NAME: "John Smith"
+      FROM_ADDRESS: john.smith@example.com
+
+  authentication-service:
+    container_name: authentication-service
+    image: abdulhalim1992/authentication-service:1.0.0
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      DATABASE_URL: postgres://postgres:postgres@postgres:5432/users
+      DSN: "host=postgres port=5432 user=postgres password=postgres dbname=users sslmode=disable timezone=UTC connect_timeout=5"
+
+  postgres:
+    image: postgres:16.3-alpine3.20
+    container_name: postgres
+    ports:
+      - "5432:5432"
+    restart: always
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: users
+    volumes:
+      - ./db-data/postgres/:/var/lib/postgresql/data
+
+  mongo:
+    container_name: mongo
+    image: mongodb/mongodb-enterprise-server
+    ports:
+      - "27017:27017"
+    deploy:
+      mode: replicated
+      replicas: 1
+    environment:
+      MONGO_INITDB_DATABASE: logs
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - ./db-data/mongo/:/data/db
+
+  mailhog:
+    container_name: mailhog
+    image: mailhog/mailhog:latest
+    ports:
+      - "1012:1025"
+      - "8025:8025"
+    deploy:
+      mode: replicated
+      replicas: 1
+
+  rabbitmq:
+    image: rabbitmq:4.1.0-rc.1-management
+    container_name: rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    deploy:
+      mode: replicated
+      replicas: 1
+    volumes:
+      - ./db-data/rabbitmq/:/var/lib/rabbitmq/
+
+volumes:
+  caddy_data:
+    external: true
+  caddy_config:
