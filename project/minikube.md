@@ -39,3 +39,18 @@ kubectl get pods --all-namespaces
 ```bash
 kubectl get pods --all-namespaces -o wide
 ```
+
+### Вывод сервисов
+```bash
+kubectl get services
+```
+
+### Вывод сервисов с дополнительной информацией
+```bash
+kubectl get services -o wide
+```
+
+
+```bash
+kubectl get deployments
+```

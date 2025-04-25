@@ -18,6 +18,8 @@ type Config struct {
 	RabbitMQ *amqp.Connection
 }
 
+
+// main - точка входа в программу
 func main() {
 	// try to connect to rabbitmq
 	rabbitConn, err := connect()

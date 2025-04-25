@@ -1,0 +1,49 @@
+# Определение версии API и типа объекта.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongo # Имя Deployment'а.
+spec:
+  replicas: 1 # Количество реплик Pod'ов (в данном случае одна).
+  selector:
+    matchLabels:
+      app: mongo # Deployment будет управлять Pod'ами с меткой "app: mongo".
+  template:
+    metadata:
+      labels:
+        app: mongo # Метка, которая будет присвоена каждому Pod'у.
+    spec:
+      containers:
+        - name: mongo # Имя контейнера.
+          image: "mongodb/mongodb-enterprise-server" # Образ Docker с MongoDB версии 4.2.17.
+          env:
+            - name: MONGO_INITDB_DATABASE
+              value: "logs" # Название базы данных, которая будет создана при инициализации.
+            - name: MONGO_INITDB_ROOT_USERNAME
+              value: "admin" # Имя пользователя с правами администратора.
+            - name: MONGO_INITDB_ROOT_PASSWORD
+              value: "password" # Пароль для пользователя с правами администратора.
+          ports:
+            - containerPort: 27017 # Порт, на котором MongoDB будет принимать подключения.
+          resources:
+            requests:
+              memory: "512Mi" # Минимальный объем памяти, который Kubernetes должен гарантировать контейнеру.
+              cpu: "250m" # Минимальное количество CPU (500 милли-CPU или 0.5 CPU).
+            limits:
+              memory: "1Gi" # Максимальный объем памяти, который может использовать контейнер.
+              cpu: "1" # Максимальное количество CPU, которое может использовать контейнер.
+
+---
+# Определение версии API и типа объекта.
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongo # Имя Service'а.
+spec:
+  selector:
+    app: mongo # Service будет направлять трафик на Pod'ы с меткой "app: mongo".
+  ports:
+    - protocol: TCP # Протокол, который будет использоваться (TCP).
+      name: main-port # Имя порта (необязательное поле).
+      port: 27017 # Порт, на котором Service будет доступен.
+      targetPort: 27017 # Порт на Pod'ах, куда будет перенаправляться трафик.
