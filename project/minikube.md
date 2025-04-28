@@ -50,7 +50,16 @@ kubectl get services
 kubectl get services -o wide
 ```
 
+### Запуск сервиса с помощью манифеста
+```bash
+kubectl expose deployment broker-service --type=LoadBalancer --port=8080 --target-port=8080
+```
+
+### Добавление ingress
+```bash
+minikube addons enable ingress
+```
 
 ```bash
-kubectl get deployments
+kubectl get ingress
 ```

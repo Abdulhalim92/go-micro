@@ -34,9 +34,10 @@ func render(w http.ResponseWriter, t string) {
 	var templateSlice []string
 	templateSlice = append(templateSlice, fmt.Sprintf("templates/%s", t))
 
-	for _, x := range partials {
-		templateSlice = append(templateSlice, x)
-	}
+	// for _, x := range partials {
+	// 	templateSlice = append(templateSlice, x)
+	// }
+	templateSlice = append(templateSlice, partials...)
 
 	tmpl, err := template.ParseFS(templateFS, templateSlice...)
 	if err != nil {
@@ -49,6 +50,7 @@ func render(w http.ResponseWriter, t string) {
 		BrokerURL string
 	}
 	data.BrokerURL = os.Getenv("BROKER_URL")
+	// data.BrokerURL = "http://localhost:8080"
 
 	if err := tmpl.Execute(w, data); err != nil {
 		log.Printf("Error executing template: %v", err)

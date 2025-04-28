@@ -68,6 +68,7 @@ func openDB(dsn string) (*sql.DB, error) {
 // connDB - это функция, которая устанавливает соединение с базой данных
 func connectToDB() *sql.DB {
 	dsn := os.Getenv("DATABASE_URL")
+	log.Printf("Connecting to database: %s", dsn)
 
 	for {
 		connection, err := openDB(dsn)
